@@ -36,6 +36,18 @@ describe('AdminLayout (/admin)', () => {
     mockRequireRole.mockRejectedValueOnce(new Error('REDIRECT:/unauthorized'))
     await expect(AdminLayout({ children: null })).rejects.toThrow('REDIRECT:/unauthorized')
   })
+
+  it('blocks non-platform_admin: agency_admin role', async () => {
+    mockRequireRole.mockRejectedValueOnce(new Error('REDIRECT:/unauthorized'))
+    await expect(AdminLayout({ children: null })).rejects.toThrow('REDIRECT:/unauthorized')
+    expect(mockRequireRole).toHaveBeenCalledWith('platform_admin')
+  })
+
+  it('blocks non-platform_admin: tenant_user role', async () => {
+    mockRequireRole.mockRejectedValueOnce(new Error('REDIRECT:/unauthorized'))
+    await expect(AdminLayout({ children: null })).rejects.toThrow('REDIRECT:/unauthorized')
+    expect(mockRequireRole).toHaveBeenCalledWith('platform_admin')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -54,6 +66,25 @@ describe('DashboardLayout (/dashboard/[id])', () => {
       DashboardLayout({ children: null, params: Promise.resolve({ id: 'tenant_xyz' }) })
     ).rejects.toThrow('REDIRECT:/unauthorized')
   })
+
+  it('blocks agency_admin from a different tenant', async () => {
+    mockRequireTenantAccess.mockRejectedValueOnce(new Error('REDIRECT:/unauthorized'))
+    await expect(
+      DashboardLayout({ children: null, params: Promise.resolve({ id: 'e2e-other-tenant-id' }) })
+    ).rejects.toThrow('REDIRECT:/unauthorized')
+    expect(mockRequireTenantAccess).toHaveBeenCalledWith('e2e-other-tenant-id')
+  })
+
+  it('allows platform_admin to access any tenant (requireTenantAccess resolves)', async () => {
+    mockRequireTenantAccess.mockResolvedValueOnce({
+      userId: 'u1',
+      role: 'platform_admin' as const,
+      tenantId: null,
+      agencyId: null,
+    })
+    await DashboardLayout({ children: null, params: Promise.resolve({ id: 'any-tenant-id' }) })
+    expect(mockRequireTenantAccess).toHaveBeenCalledWith('any-tenant-id')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -69,5 +100,11 @@ describe('AdminDashboardLayout (/dashboard/[id]/admin)', () => {
   it('propagates redirect when role check fails', async () => {
     mockRequireRole.mockRejectedValueOnce(new Error('REDIRECT:/unauthorized'))
     await expect(AdminDashboardLayout({ children: null })).rejects.toThrow('REDIRECT:/unauthorized')
+  })
+
+  it('blocks non-agency_admin: tenant_user role', async () => {
+    mockRequireRole.mockRejectedValueOnce(new Error('REDIRECT:/unauthorized'))
+    await expect(AdminDashboardLayout({ children: null })).rejects.toThrow('REDIRECT:/unauthorized')
+    expect(mockRequireRole).toHaveBeenCalledWith('agency_admin')
   })
 })
