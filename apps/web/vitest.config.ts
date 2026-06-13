@@ -2,6 +2,10 @@ import { defineConfig } from 'vitest/config'
 import path from 'path'
 
 export default defineConfig({
+  esbuild: {
+    jsx: 'automatic',
+    jsxImportSource: 'react',
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -13,6 +17,9 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**'],
       exclude: ['src/app/**', 'src/components/ui/**'],
+    },
+    snapshotFormat: {
+      printBasicPrototype: false,
     },
   },
 })
