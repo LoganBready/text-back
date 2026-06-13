@@ -49,11 +49,13 @@ const isProtectedRoute = createRouteMatcher(['/admin(.*)', '/dashboard(.*)'])
 Authenticated users hitting `/` are redirected to their portal:
 
 ```
-platform_admin  → /admin
-agency_admin    → /dashboard/[tenantId]/admin
-tenant_user     → /dashboard/[tenantId]
-no role         → /unauthorized
-unauthenticated → /sign-in
+platform_admin               → /admin
+agency_admin with tenantId   → /dashboard/[tenantId]/admin
+tenant_user with tenantId    → /dashboard/[tenantId]
+agency_admin, no tenantId    → /unauthorized
+tenant_user, no tenantId     → /unauthorized
+no role                      → /unauthorized
+unauthenticated              → /sign-in
 ```
 
 ## Auth Guards (layout-level)
@@ -81,6 +83,8 @@ Two new test files, same mocking pattern as the existing `__tests__/auth.test.ts
 | `agency_admin` with `tenantId` | Redirect to `/dashboard/[tenantId]/admin` |
 | `tenant_user` with `tenantId` | Redirect to `/dashboard/[tenantId]` |
 | Authenticated, no role | Redirect to `/unauthorized` |
+| `agency_admin` with no `tenantId` | Redirect to `/unauthorized` |
+| `tenant_user` with no `tenantId` | Redirect to `/unauthorized` |
 
 ### `__tests__/portal-layouts.test.ts`
 
