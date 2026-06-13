@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Core multi-tenant schema (Phase 1/2)
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  config        TenantConfig?
+  phoneNumbers  PhoneNumber[]
+  conversations Conversation[]
+  calls         Call[]
+
+  @@map("tenants")
+}
+
+model TenantConfig {
+  id       String @id @default(cuid())
+  tenantId String @unique
+
+  // Business info
+  businessName    String
+  timezone        String  @default("America/New_York")
+  businessHours   Json?   // { mon: { open: "09:00", close: "17:00" }, ... }
+  services        String[]
+
+  // AI persona
+  aiPersonaName   String  @default("Assistant")
+  aiTone          String  @default("professional") // professional | friendly | casual
+  systemPrompt    String? // override the default system prompt
+
+  // Routing
+  bookingLink     String?
+  escalationPhone String? // forward to this number if AI can't handle it
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tenant_configs")
+}
+
+model PhoneNumber {
+  id            String  @id @default(cuid())
+  tenantId      String
+  number        String  @unique // E.164 format, e.g. +15551234567
+  twilioSid     String? // Twilio phone number SID
+  twilioSubaccountSid String? // Twilio subaccount SID (for agency layer later)
+  active        Boolean @default(true)
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@map("phone_numbers")
+}
+
+model Call {
+  id            String  @id @default(cuid())
+  tenantId      String
+  twilioCallSid String  @unique
+  from          String  // caller's number
+  to            String  // tenant's number
+  status        String  // no-answer | busy | failed | completed
+  duration      Int?    // seconds
+
+  conversation  Conversation?
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@map("calls")
+}
+
+model Conversation {
+  id       String @id @default(cuid())
+  tenantId String
+  callId   String? @unique
+  from     String  // lead's phone number
+  status   String  @default("active") // active | resolved | escalated
+
+  messages Message[]
+  call     Call?    @relation(fields: [callId], references: [id])
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String @id @default(cuid())
+  conversationId String
+  role           String // user | assistant
+  body           String
+  twilioSid      String? // Twilio message SID
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+
+  @@map("messages")
+}
